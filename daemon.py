@@ -1,8 +1,11 @@
+import queue
 import signal
 import sys
+import threading
 from functools import partial
 
-from demo_impl.daemon.vrc_t70_daemon import VrcT70Daemon
+from demo_impl.daemon.events_processor import EventProcessor
+from demo_impl.daemon.threaded_daemon import ThreadedVrcT70Daemon
 from demo_impl.shared.models.devices import VrcT70Device  # noqa
 from demo_impl.shared.models.sensors import VrcT70Sensor  # noqa
 from demo_impl.shared.models.shared import Base
@@ -11,7 +14,6 @@ from demo_impl.shared.support.config_support import get_config
 
 from loguru import logger as initial_logger
 
-import serial
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -50,18 +52,10 @@ def init_logger(config):
     return initial_logger
 
 
-def init_serial(uart_name, uart_speed):
-    return serial.Serial(
-        uart_name,
-        baudrate=uart_speed,
-        bytesize=serial.EIGHTBITS,
-        timeout=1,
-        parity=serial.PARITY_NONE,
-        stopbits=serial.STOPBITS_ONE
-    )
+def signal_handler(sig, frame, daemon, need_stop, logger):
+    logger.warning("!!!!!! want to stop daemon !!!!!!")
+    need_stop.set()
 
-
-def signal_handler(sig, frame, daemon, logger):
     if not daemon:
         sys.exit(0)
 
@@ -70,6 +64,8 @@ def signal_handler(sig, frame, daemon, logger):
 
 
 def main():
+    need_stop = threading.Event()
+
     config = get_config()
     if not config:
         initial_logger.error("can't initialize, can't read config file")
@@ -91,20 +87,44 @@ def main():
     Session = sessionmaker(bind=engine)
     session = Session()
 
-    # TODO: load from config
-    uart = init_serial("COM15", 115200)
-    devices_addresses = [0x01]
+    uart_name = ConfigHelper.get_uart_name(config)
+    uart_speed = ConfigHelper.get_uart_speed(config)
+    devices_addresses = ConfigHelper.get_devices_address(config)
 
-    daemon = VrcT70Daemon(uart, devices_addresses, logger, session)
+    logger.info("going connect to port {} with speed {}".format(uart_name, uart_speed))
+    logger.info("will poll for devices with addresses: {}".format(devices_addresses))
 
-    partial_handler = partial(signal_handler, daemon=daemon, logger=logger)
+    if not devices_addresses:
+        logger.error("no device addresses for polling, going out")
+        return -1
+
+    events_queue = queue.Queue()
+    threaded_daemon = ThreadedVrcT70Daemon(events_queue, logger, uart_name, uart_speed, devices_addresses)
+    events_processor = EventProcessor(logger, session)
+
+    partial_handler = partial(signal_handler, daemon=threaded_daemon, need_stop=need_stop, logger=logger)
     signal.signal(signal.SIGINT, partial_handler)
 
-    daemon.init()
-    daemon.run()
+    threaded_daemon.start()
+    while not need_stop.is_set():
+        try:
+            event = events_queue.get(block=True, timeout=0.5)
+        except queue.Empty:
+            event = None
 
+        if not event:
+            continue
+
+        logger.debug("event registered: {}".format(event))
+        events_processor.process_event(event)
+
+    threaded_daemon.join()
+    while not events_queue.empty():
+        event = events_queue.get()
+        logger.debug("event skipped at end: {}".format(event))
+
+    session.commit()
     logger.info("daemon finished")
-
     return 0
 
 

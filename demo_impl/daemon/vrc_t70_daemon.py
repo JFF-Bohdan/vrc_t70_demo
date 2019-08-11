@@ -2,26 +2,28 @@ import datetime
 import random
 import time
 
+from .data_types import DeviceLastCommunicationTouch, SensorReadData
 from .utils import hexlify_to_string
 from .vrc_t70_stateful_communicator import VrcT70StatefulCommunicator
-from ..shared.models.devices import VrcT70Device
-from ..shared.models.sensors import VrcT70Sensor
 
 
 class VrcT70Daemon(object):
     DEFAULT_POLLING_SLEEP_INTERVAL = 1
+    DEFAULT_TEMP_ROUND_PRESISSION = 3
 
-    def __init__(self, serial, devices_addresses, logger, db_session):
+    def __init__(self, events_queue, serial, devices_addresses, logger):  # , db_session
         self._serial = serial
         self._devices_addresses = devices_addresses
         self._communicators = []
         self.logger = logger
         self._stop = False
         self._polling_sleep_interval = VrcT70Daemon.DEFAULT_POLLING_SLEEP_INTERVAL
-        self.db_session = db_session
+        # self.db_session = db_session
+        self._events_queue = events_queue
 
-        self._map_device_addresses_to_ids = dict()
-        self._round_precission = 3
+        # self._map_device_addresses_to_ids = dict()
+        self._round_precission = VrcT70Daemon.DEFAULT_TEMP_ROUND_PRESISSION
+        self.pre_queuing_func = None
 
     def init(self):
         for device_address in self._devices_addresses:
@@ -69,64 +71,33 @@ class VrcT70Daemon(object):
     def stop(self):
         self._stop = True
 
+    def _on_communicator_registration(self, communicator):
+        event = DeviceLastCommunicationTouch(device_address=communicator.controller_address)
+
+        if self.pre_queuing_func:
+            event = self.pre_queuing_func(event)
+
+        self._events_queue.put(event)
+
     def _on_events_from_device_received(self, communicator, events):
-        device_id = self._map_device_addresses_to_ids[communicator.controller_address]
+        external_event = SensorReadData()
+        external_event.device_address = communicator.controller_address
 
+        events_list = list()
         for event in events:
-            sensor = self.db_session.query(
-                VrcT70Sensor
-            ).filter(
-                VrcT70Sensor.device_id == device_id,
-                VrcT70Sensor.sensor_address == event.sensor_address
-            ).scalar()
-
-            new_sensor = False
-            if not sensor:
-                sensor = VrcT70Sensor()
-                sensor.device_id = device_id
-                sensor.sensor_address = event.sensor_address
-                new_sensor = True
-
-            sensor.trunk_number = event.trunk_number
-            sensor.sensor_index = event.sensor_index
-            sensor.is_connected = event.is_connected
-            sensor.temperature = round(event.temperature, self._round_precission) \
+            external_event.sensor_address = event.sensor_address
+            external_event.trunk_number = event.trunk_number
+            external_event.sensor_index = event.sensor_index
+            external_event.is_connected = event.is_connected
+            external_event.temperature = round(event.temperature, self._round_precission) \
                 if event.temperature is not None else None
 
-            if new_sensor:
-                self.db_session.add(sensor)
+            if self.pre_queuing_func:
+                external_event = self.pre_queuing_func(external_event)
 
-        self.db_session.commit()
+            events_list.append(external_event)
 
-    def _on_communicator_registration(self, communicator):
-        vrc_t70_device = self.db_session.query(
-            VrcT70Device
-        ).filter(
-            VrcT70Device.device_address == communicator.controller_address
-        ).scalar()
-
-        if vrc_t70_device:
-            vrc_t70_device.last_update_timestamp = utc_now()
-            self._map_device_addresses_to_ids[communicator.controller_address] = vrc_t70_device.device_id
-
-            self.db_session.query(
-                VrcT70Sensor
-            ).filter(
-                VrcT70Sensor.device_id == vrc_t70_device.device_id
-            ).delete(synchronize_session=False)
-
-            self.db_session.commit()
-            return
-
-        vrc_t70_device = VrcT70Device()
-
-        vrc_t70_device.device_address = communicator.controller_address
-        vrc_t70_device.device_name = "Device {}".format(communicator.hex_device_address_for_communicator())
-        self.db_session.add(vrc_t70_device)
-        self.db_session.flush()
-        self._map_device_addresses_to_ids[vrc_t70_device.device_id] = communicator.controller_address
-
-        self.db_session.commit()
+        self._events_queue.put(external_event)
 
 
 def random_byte_array(length):

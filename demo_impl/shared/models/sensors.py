@@ -15,7 +15,12 @@ class VrcT70Sensor(Base):
 
     sensor_id = types_holder.Column(types_holder.Integer, primary_key=True)
 
-    sensor_address = types_holder.Column(types_holder.String(64), nullable=False, unique=True)
+    sensor_address = types_holder.Column(
+        types_holder.String(64),
+        nullable=False,
+        unique=True,
+        comment="DS18B20 sensor address"
+    )
 
     device_id = types_holder.Column(
         types_holder.Integer,
@@ -30,7 +35,11 @@ class VrcT70Sensor(Base):
 
     is_connected = types_holder.Column(types_holder.Boolean, nullable=False, default=False)
 
-    adding_timestamp = types_holder.Column(types_holder.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    adding_timestamp = types_holder.Column(
+        types_holder.DateTime,
+        nullable=False,
+        default=datetime.datetime.utcnow
+    )
 
     last_update_timestamp = types_holder.Column(
         types_holder.DateTime,
