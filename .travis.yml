@@ -1,0 +1,14 @@
+dist: xenial
+language: python
+python:
+    - 3.5
+    - 3.6
+    - 3.7
+install:
+    - pip install -r requirements-dev.txt
+    - pip install coveralls
+script:
+    - python -m flake8
+    - py.test tests -v --cov=demo_impl
+after_success:
+    - coveralls --verbose
