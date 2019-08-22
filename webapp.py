@@ -2,7 +2,7 @@ import sys
 
 from demo_impl.shared.support.config_helper import WebAppConfigHelper
 from demo_impl.shared.support.config_support import get_config
-from demo_impl.webui import app
+from demo_impl.webui import create_app
 
 from loguru import logger as initial_logger
 
@@ -41,11 +41,19 @@ def main():
     web_host = WebAppConfigHelper.get_web_app_host(config)
     web_port = WebAppConfigHelper.get_web_app_port(config)
     logger = init_logger(config)
+    app = create_app(logger)
+
+    @app.before_request
+    def before_request():
+        from flask import request
+        logger.info("going to {}".format(request.path))
 
     logger.info(f"web_host: {web_host}")
     logger.info(f"web_port: {web_port}")
 
-    app.run(web_host, web_port)
+    logger.info("going to execute app")
+    app.run(web_host, web_port, debug=True, use_reloader=True)
+
     return 0
 
 
