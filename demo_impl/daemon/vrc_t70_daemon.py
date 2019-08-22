@@ -56,9 +56,9 @@ class VrcT70Daemon(object):
                 if self._stop:
                     break
 
-                self.logger.info("updating data for controller {}".format(communicator.hex_device_address_for_communicator()))
+                self.logger.debug("updating data for controller {}".format(communicator.hex_device_address_for_communicator()))
                 events = communicator.update_temperatures()
-                self.logger.info("events: {}".format(events))
+                self.logger.debug("events: {}".format(events))
 
                 self._on_events_from_device_received(communicator, events)
 
