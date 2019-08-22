@@ -1,5 +1,6 @@
 from flask import Flask
 from flask.logging import default_handler
+from flask_log_request_id import RequestID, current_request_id
 from flask_sqlalchemy import SQLAlchemy
 
 from .api_blueprint.api_blueprint import api_blueprint
@@ -39,6 +40,7 @@ def create_app(additional_logger, db_connection_uri, root_path=None):
 
     app.config['SQLALCHEMY_DATABASE_URI'] = db_connection_uri
     db.init_app(app)
+    RequestID(app)
 
     log = WrapperForLoguru(additional_logger)
     log.init_app(app)
