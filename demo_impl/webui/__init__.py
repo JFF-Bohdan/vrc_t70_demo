@@ -1,7 +1,13 @@
 from flask import Flask
 from flask.logging import default_handler
+from flask_sqlalchemy import SQLAlchemy
 
 from .api_blueprint.api_blueprint import api_blueprint
+
+db = SQLAlchemy()
+# from demo_impl.shared.models.shared import set_base
+
+# set_base(db.Model)
 
 
 class WrapperForLoguru(object):
@@ -26,10 +32,13 @@ class WrapperForLoguru(object):
         app.extensions["loguru"][self] = self.logger
 
 
-def create_app(additional_logger):
-    app = Flask(__name__)
+def create_app(additional_logger, db_connection_uri, root_path=None):
+    app = Flask(__name__, root_path=root_path)
 
     app.logger.removeHandler(default_handler)
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_connection_uri
+    db.init_app(app)
 
     log = WrapperForLoguru(additional_logger)
     log.init_app(app)

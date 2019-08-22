@@ -19,3 +19,8 @@ class SqliteNumeric(types.TypeDecorator):
 
 
 Base = declarative_base()
+
+
+# def set_base(new_base):
+#     global Base
+#     Base = new_base

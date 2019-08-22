@@ -1,8 +1,10 @@
-class DaemonConfigHelper(object):
+class BaseConfigHelper(object):
     @staticmethod
     def get_database_connection_uri(config, default_value=None):
         return config.get("database", "connection_uri", fallback=default_value)
 
+
+class DaemonConfigHelper(BaseConfigHelper):
     @staticmethod
     def get_log_level(config, default_value="INFO"):
         return config.get("daemon", "log_level", fallback=default_value)
@@ -45,7 +47,7 @@ class DaemonConfigHelper(object):
         return config.getint("daemon", "speed", fallback=defaul_value)
 
 
-class WebAppConfigHelper(object):
+class WebAppConfigHelper(BaseConfigHelper):
     @staticmethod
     def get_web_app_host(config, defaul_value="localhost"):
         return config.get("web_ui", "host", fallback=defaul_value)
