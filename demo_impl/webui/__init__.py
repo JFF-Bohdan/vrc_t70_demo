@@ -1,7 +1,7 @@
 from flask import Flask
 
+from .api_blueprint.api_blueprint import api_blueprint
+
 
 app = Flask(__name__)
-__version__ = "0.1.1"
-
-from .routes import *  # noqa
+app.register_blueprint(api_blueprint, url_prefix='/api/v1')

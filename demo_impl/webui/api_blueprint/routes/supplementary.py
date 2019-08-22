@@ -1,10 +1,12 @@
+from demo_impl.webui.__version__ import __version__
+
 from flask import jsonify
 
-from demo_impl.webui import app, __version__
+from ..api_blueprint import api_blueprint
 
 
-@app.route('/version')
-@app.route('/liveness')
+@api_blueprint.route("/version")
+@api_blueprint.route("/liveness")
 def version_endpoint():
     res = {
         "version": __version__,

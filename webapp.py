@@ -1,8 +1,9 @@
 import sys
 
-from demo_impl.webui import app
 from demo_impl.shared.support.config_helper import WebAppConfigHelper
 from demo_impl.shared.support.config_support import get_config
+from demo_impl.webui import app
+
 from loguru import logger as initial_logger
 
 

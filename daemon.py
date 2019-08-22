@@ -9,7 +9,7 @@ from demo_impl.daemon.threaded_daemon import ThreadedVrcT70Daemon
 from demo_impl.shared.models.devices import VrcT70Device  # noqa
 from demo_impl.shared.models.sensors import VrcT70Sensor  # noqa
 from demo_impl.shared.models.shared import Base
-from demo_impl.shared.support.config_helper import ConfigHelper
+from demo_impl.shared.support.config_helper import DaemonConfigHelper
 from demo_impl.shared.support.config_support import get_config
 
 from loguru import logger as initial_logger
@@ -32,21 +32,21 @@ def init_logger(config):
     initial_logger.add(
         sys.stderr,
         format=log_format,
-        level=ConfigHelper.get_daemon_log_level(config),
-        backtrace=ConfigHelper.get_daemon_log_backtrace(config),
-        diagnose=ConfigHelper.get_daemon_log_diagnose(config)
+        level=DaemonConfigHelper.get_daemon_log_level(config),
+        backtrace=DaemonConfigHelper.get_daemon_log_backtrace(config),
+        diagnose=DaemonConfigHelper.get_daemon_log_diagnose(config)
     )
 
-    log_file_name = ConfigHelper.get_daemon_log_file_name(config)
+    log_file_name = DaemonConfigHelper.get_daemon_log_file_name(config)
     if log_file_name:
         initial_logger.add(
             log_file_name,
             format=log_format,
-            level=ConfigHelper.get_daemon_log_level(config),
-            rotation=ConfigHelper.get_daemon_log_file_rotation(config),
-            compression=ConfigHelper.get_daemon_log_file_compression(config),
-            backtrace=ConfigHelper.get_daemon_log_backtrace(config),
-            diagnose=ConfigHelper.get_daemon_log_diagnose(config)
+            level=DaemonConfigHelper.get_daemon_log_level(config),
+            rotation=DaemonConfigHelper.get_daemon_log_file_rotation(config),
+            compression=DaemonConfigHelper.get_daemon_log_file_compression(config),
+            backtrace=DaemonConfigHelper.get_daemon_log_backtrace(config),
+            diagnose=DaemonConfigHelper.get_daemon_log_diagnose(config)
         )
 
     return initial_logger
@@ -75,7 +75,7 @@ def main():
 
     logger.info("daemon started")
 
-    db_uri = ConfigHelper.get_database_connection_uri(config)
+    db_uri = DaemonConfigHelper.get_database_connection_uri(config)
     logger.debug("db_uri: '{}'".format(db_uri))
 
     logger.info("initializing database connection")
@@ -87,9 +87,9 @@ def main():
     Session = sessionmaker(bind=engine)
     session = Session()
 
-    uart_name = ConfigHelper.get_uart_name(config)
-    uart_speed = ConfigHelper.get_uart_speed(config)
-    devices_addresses = ConfigHelper.get_devices_address(config)
+    uart_name = DaemonConfigHelper.get_uart_name(config)
+    uart_speed = DaemonConfigHelper.get_uart_speed(config)
+    devices_addresses = DaemonConfigHelper.get_devices_address(config)
 
     logger.info("going connect to port {} with speed {}".format(uart_name, uart_speed))
     logger.info("will poll for devices with addresses: {}".format(devices_addresses))
